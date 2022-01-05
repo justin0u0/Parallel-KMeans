@@ -36,25 +36,26 @@ bool recentering(int n, int k, Point* points, Cluster* clusters) {
 	bool done = true;
 
 	for (int i = 0; i < k; ++i) {
+		Cluster* cluster = &clusters[i];
+
 		int sumX = 0;
 		int sumY = 0;
 		int sumZ = 0;
-		int count = 0;
-		for (int j = 0; j < clusters[i].size; ++j) {
-			Point* point = &points[clusters[i].points[j]];
+
+		for (int j = 0; j < cluster->size; ++j) {
+			Point* point = &points[cluster->points[j]];
 			sumX += point->x;
 			sumY += point->y;
 			sumZ += point->z;
-			++count;
 		}
 
-		if (count > 0) {
+		if (cluster->size > 0) {
 			Cluster old = clusters[i];
 			Cluster *cur = &clusters[i];
 
-			cur->x = sumX / count;
-			cur->y = sumY / count;
-			cur->z = sumZ / count;
+			cur->x = sumX / cluster->size;
+			cur->y = sumY / cluster->size;
+			cur->z = sumZ / cluster->size;
 
 			if (old.x != cur->x || old.y != cur->y || old.z != cur->z) {
 				done = false;
