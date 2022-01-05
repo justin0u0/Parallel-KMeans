@@ -1,8 +1,8 @@
 CXX = g++
 LDFLAGS = -lpng
-CXXFLAGS = -O3 -fopenmp
+TARGETS = kmeans_sequential kmeans_omp
 
-TARGETS = kmeans_sequential
+kmeans_omp: CXXFLAGS += -fopenmp
 
 .PHONY: all
 all: $(TARGETS)
