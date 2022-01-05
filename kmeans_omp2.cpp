@@ -20,7 +20,7 @@ struct Cluster {
 	uint8_t x;                // R
 	uint8_t y;                // G
 	uint8_t z;                // B
-	std::vector<bool> points; // one hot array holding points
+	std::vector<bool> points; // one hot array holding if point exist
 };
 
 void clustering(int n, int k, Point* points, Cluster* clusters) {
@@ -55,8 +55,6 @@ bool recentering(int n, int k, Point* points, Cluster* clusters) {
 	bool done = true;
 
 	for (int i = 0; i < k; ++i) {
-		Cluster* cluster = &clusters[i];
-
 		int sumX = 0;
 		int sumY = 0;
 		int sumZ = 0;
@@ -66,14 +64,14 @@ bool recentering(int n, int k, Point* points, Cluster* clusters) {
 		for (int j = 0; j < n; ++j) {
 			Point* point = &points[j];
 
-			bool exist = cluster->points[j];
+			bool exist = clusters[i].points[j];
 			sumX += point->x * exist;
 			sumY += point->y * exist;
 			sumZ += point->z * exist;
 			count += exist;
 		}
 
-		if (cluster->size > 0) {
+		if (count > 0) {
 			Cluster old = clusters[i];
 			Cluster *cur = &clusters[i];
 
@@ -107,7 +105,7 @@ int main(int argc, const char** argv) {
 	}
 
 	int n = height * width;
-	Point* points = (Point*)malloc(n * sizeof(Point));
+	Point* points = new Point[n];
 	for (int i = 0; i < n; ++i) {
 		points[i].x = image[i * channels];
 		points[i].y = image[i * channels + 1];
@@ -115,16 +113,16 @@ int main(int argc, const char** argv) {
 		points[i].cluster = -1;
 	}
 
-	Cluster* clusters = (Cluster*)malloc(k * sizeof(Cluster));
+	Cluster* clusters = new Cluster[k];
 	std::mt19937 mt{std::random_device{}()};
+	mt.seed(5);
 	std::uniform_int_distribution<> dist(0, n - 1);
 	for (int i = 0; i < k; ++i) {
 		int j = dist(mt);
 		clusters[i].x = points[j].x;
 		clusters[i].y = points[j].y;
 		clusters[i].z = points[j].z;
-		clusters[i].size = 0;
-		clusters[i].points = (int*)malloc(n * sizeof(int));
+		clusters[i].points.resize(n);
 	}
 
 	do {
@@ -144,5 +142,9 @@ int main(int argc, const char** argv) {
 		exit(err);
 	}
 
+	delete[] clusters;
+	delete[] points;
+
 	return 0;
 }
+
