@@ -5,16 +5,20 @@
 #include "kmeans.h"
 #include "kmeans_png.h"
 
-void clustering(int n, int k, Point* points, Point* centers) {
+void clustering(int n, int k, Point* points, Cluster* clusters) {
+	for (int i = 0; i < k; i++) {
+		clusters[i].size = 0;
+	}
+
 	for (int i = 0; i < n; ++i) {
 		int min_dist = 0x7fffffff;
 		int cluster;
 
 		for (int j = 0; j < k; ++j) {
 			int dist = (
-				(points[i].x - centers[j].x) * (points[i].x - centers[j].x) + 
-				(points[i].y - centers[j].y) * (points[i].y - centers[j].y) + 
-				(points[i].z - centers[j].z) * (points[i].z - centers[j].z)
+				(points[i].x - clusters[j].x) * (points[i].x - clusters[j].x) + 
+				(points[i].y - clusters[j].y) * (points[i].y - clusters[j].y) + 
+				(points[i].z - clusters[j].z) * (points[i].z - clusters[j].z)
 			);
 
 			if (min_dist > dist) {
@@ -24,33 +28,35 @@ void clustering(int n, int k, Point* points, Point* centers) {
 		}
 
 		points[i].cluster = cluster;
+		clusters[cluster].points[clusters[cluster].size++] = i;
 	}
 }
 
-bool recentering(int n, int k, Point* points, Point* centers) {
-	int sumX[k] = {0};
-	int sumY[k] = {0};
-	int sumZ[k] = {0};
-	int count[k] = {0};
-
-	for (int i = 0; i < n; ++i) {
-		int cluster = points[i].cluster;
-		++count[cluster];
-		sumX[cluster] += points[i].x;
-		sumY[cluster] += points[i].y;
-		sumZ[cluster] += points[i].z;
-	}
-
+bool recentering(int n, int k, Point* points, Cluster* clusters) {
 	bool done = true;
+
 	for (int i = 0; i < k; ++i) {
-		if (count[i] > 0) {
-			Point old = centers[i];
+		int sumX = 0;
+		int sumY = 0;
+		int sumZ = 0;
+		int count = 0;
+		for (int j = 0; j < clusters[i].size; ++j) {
+			Point* point = &points[clusters[i].points[j]];
+			sumX += point->x;
+			sumY += point->y;
+			sumZ += point->z;
+			++count;
+		}
 
-			centers[i].x = sumX[i] / count[i];
-			centers[i].y = sumY[i] / count[i];
-			centers[i].z = sumZ[i] / count[i];
+		if (count > 0) {
+			Cluster old = clusters[i];
+			Cluster *cur = &clusters[i];
 
-			if (old.x != centers[i].x || old.y != centers[i].y || old.z != centers[i].z) {
+			cur->x = sumX / count;
+			cur->y = sumY / count;
+			cur->z = sumZ / count;
+
+			if (old.x != cur->x || old.y != cur->y || old.z != cur->z) {
 				done = false;
 			}
 		}
@@ -84,22 +90,27 @@ int main(int argc, const char** argv) {
 		points[i].cluster = -1;
 	}
 
-	Point* centers = (Point*)malloc(k * sizeof(Point));
+	Cluster* clusters = (Cluster*)malloc(k * sizeof(Cluster));
 	std::mt19937 mt{std::random_device{}()};
 	std::uniform_int_distribution<> dist(0, n - 1);
 	for (int i = 0; i < k; ++i) {
-		centers[i] = points[dist(mt)];
+		int j = dist(mt);
+		clusters[i].x = points[j].x;
+		clusters[i].y = points[j].y;
+		clusters[i].z = points[j].z;
+		clusters[i].size = 0;
+		clusters[i].points = (int*)malloc(n * sizeof(int));
 	}
 
 	do {
-		clustering(n, k, points, centers);
-	} while (!recentering(n, k, points, centers));
+		clustering(n, k, points, clusters);
+	} while (!recentering(n, k, points, clusters));
 
 	for (int i = 0; i < n; ++i) {
-		Point* center = &centers[points[i].cluster];
-		image[i * channels] = center->x;
-		image[i * channels + 1] = center->y;
-		image[i * channels + 2] = center->z;
+		Cluster* cluster = &clusters[points[i].cluster];
+		image[i * channels] = cluster->x;
+		image[i * channels + 1] = cluster->y;
+		image[i * channels + 2] = cluster->z;
 	}
 
 	err = write_png(outfile, image, height, width, channels);
