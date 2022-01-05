@@ -1,6 +1,6 @@
 CXX = g++
 LDFLAGS = -lpng
-CXXFLAGS = -O3
+CXXFLAGS = -O3 -fopenmp
 
 TARGETS = kmeans_sequential
 
