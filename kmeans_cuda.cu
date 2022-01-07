@@ -45,40 +45,22 @@ __global__ void clustering(int n, int k, uint3* __restrict__ points, int* __rest
 }
 
 __global__ void recentering_phase1(int n, int cluster, const uint3* __restrict__ points, const int* __restrict__ clusters, uint4* __restrict__ all) {
-	unsigned int gridSize = blockDim.x * gridDim.x;
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
 
 	uint4 sum = make_uint4(0, 0, 0, 0);
-
-	for (unsigned int i = threadIdx.x + blockDim.x * blockIdx.x; i < n; i += gridSize) {
-		bool ok = clusters[i] == cluster;
-		uint3 point = points[i];
-
-		sum.x += point.x * ok;
-		sum.y += point.y * ok;
-		sum.z += point.z * ok;
-		sum.w += ok;
+	if (idx < n && cluster == clusters[idx]) {
+		uint3 point = points[idx];
+		sum = make_uint4(point.x, point.y, point.z, 1);
 	}
 
 	sum = warp_reduce_sum(sum);
 
-	if ((threadIdx.x & (warpSize - 1)) == 0)
+	if ((threadIdx.x & (warpSize - 1)) == 0) {
 		atomicAdd(&all->x, sum.x);
 		atomicAdd(&all->y, sum.y);
 		atomicAdd(&all->z, sum.z);
 		atomicAdd(&all->w, sum.w);
 	}
-
-	/*
-
-	uint3 point = points[idx];
-
-	if (cluster == clusters[idx]) {
-		atomicAdd(&all->x, point.x);
-		atomicAdd(&all->y, point.y);
-		atomicAdd(&all->z, point.z);
-		atomicAdd(&all->w, 1);
-	}
-	*/
 }
 
 __global__ void recentering_phase2(uint3* center, uint4* all, bool* done) {
