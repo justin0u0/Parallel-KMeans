@@ -6,20 +6,18 @@
 #include <vector>
 #include "kmeans_png.h"
 
-__inline__ __device__ uint4 warp_reduce_sum(uint4 val) {
-	// we ensure that all threads size > warp size so just use full mask directly
-
+/*
+__inline__ __device__ uint3 warpReduceSumTriple(uint3 val) {
   for (int offset = warpSize / 2; offset > 0; offset /= 2) {
-    val.x += __shfl_down_sync(0xffffffff, val.x, offset);
-    val.y += __shfl_down_sync(0xffffffff, val.y, offset);
-    val.z += __shfl_down_sync(0xffffffff, val.z, offset);
-		val.w += __shfl_down_sync(0xffffffff, val.w, offset);
-	}
-
+    val.x += __shfl_down(val.x, offset);
+    val.y += __shfl_down(val.y, offset);
+    val.z += __shfl_down(val.z, offset);
+  }
   return val;
 }
+*/
 
-__global__ void clustering(int n, int k, uint3* __restrict__ points, int* __restrict__ clusters, const uint3* __restrict__ centers) {
+__global__ void clustering(int n, int k, uint3* points, int* clusters, const uint3* __restrict__ centers) {
 	int idx = threadIdx.x + blockDim.x * blockIdx.x;
 	if (idx >= n) return;
 
@@ -44,31 +42,9 @@ __global__ void clustering(int n, int k, uint3* __restrict__ points, int* __rest
 	clusters[idx] = cluster;
 }
 
-__global__ void recentering_phase1(int n, int cluster, const uint3* __restrict__ points, const int* __restrict__ clusters, uint4* __restrict__ all) {
-	unsigned int gridSize = blockDim.x * gridDim.x;
-
-	uint4 sum = make_uint4(0, 0, 0, 0);
-
-	for (unsigned int i = threadIdx.x + blockDim.x * blockIdx.x; i < n; i += gridSize) {
-		bool ok = clusters[i] == cluster;
-		uint3 point = points[i];
-
-		sum.x += point.x * ok;
-		sum.y += point.y * ok;
-		sum.z += point.z * ok;
-		sum.w += ok;
-	}
-
-	sum = warp_reduce_sum(sum);
-
-	if ((threadIdx.x & (warpSize - 1)) == 0)
-		atomicAdd(&all->x, sum.x);
-		atomicAdd(&all->y, sum.y);
-		atomicAdd(&all->z, sum.z);
-		atomicAdd(&all->w, sum.w);
-	}
-
-	/*
+__global__ void recentering_phase1(int n, int cluster, uint3* points, int* clusters, uint4* all) {
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	if (idx >= n) return;
 
 	uint3 point = points[idx];
 
@@ -78,7 +54,6 @@ __global__ void recentering_phase1(int n, int cluster, const uint3* __restrict__
 		atomicAdd(&all->z, point.z);
 		atomicAdd(&all->w, 1);
 	}
-	*/
 }
 
 __global__ void recentering_phase2(uint3* center, uint4* all, bool* done) {
