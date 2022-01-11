@@ -30,6 +30,8 @@ void clustering(int n, int k, Point* points, Cluster* clusters) {
 		}
 
 		points[i].cluster = cluster;
+
+		#pragma omp critical
 		clusters[cluster].points[clusters[cluster].size++] = i;
 	}
 }
